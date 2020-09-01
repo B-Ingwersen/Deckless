@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <link type="text/css" rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <style>
+        body {
+            margin: 0;
+            background-color: #008800;
+        }
+        .imitation-card {
+            height: 500px;
+            border-radius: 25px;
+        }
+        .exit-button {
+            background-color: rgba(0, 80, 0, 0.8);
+        }
+        .exit-button:hover {
+            background-color: rgba(255, 0, 0, 0.9) !important;
+            color : white !important;
+        }
+    </style>
+
+    <script src="visual.js"></script>
+    <script src="state.js"></script>
+    <script src="cards.js"></script>
+    <script src="moves.js"></script>
+    <script src="ratscrew.js"></script>
+    <script src="game.js"></script>
+    <script src="localGame.js"></script>
+
+</head>
+<body class="w3-green" onresize="" style="width: 100%; height: 100%;">
+
+    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/7.11.0/firebase-app.js"></script>
+
+    <!-- If you enabled Analytics in your project, add the Firebase SDK for Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/7.11.0/firebase-analytics.js"></script>
+
+    <!-- Add Firebase products that you want to use -->
+    <script src="https://www.gstatic.com/firebasejs/7.11.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.11.0/firebase-database.js"></script>
+
+    <script src="webGame.js"></script>
+
+
+    <div id="welcome-screen">
+        <div class="w3-padding w3-content">
+
+            <h1>Deckless - Select Game</h1>
+            <h3>Free Card Games for When You Don't Have a Physical Deck</h3>
+
+            <div id="welcome-panel" class="w3-row w3-section w3-stretch">
+            <div class="w3-col s12 m6 l4 w3-padding">
+                <div class="w3-card w3-white imitation-card w3-padding">
+
+                <h2>Join Group:</h2>
+
+                <form id="welcome-join-form">
+                    <label>Nickname:</label>
+                    <input class="w3-input w3-margin-bottom" type="text" id="welcome-join-name">
+
+                    <label>Group Code: </label>
+                    <input class="w3-input w3-margin-bottom" type="text" id="welcome-join-code">
+
+                    <button id="welcome-join-button" class="w3-button w3-blue">
+                    Go To Game!
+                    </button>
+
+                    <p style="color: red" id="welcome-join-error"></p>
+                </form>
+                </div>
+            </div>
+
+            <div class="w3-col s12 m6 l4 w3-padding">
+                <div class="w3-card w3-white imitation-card w3-padding">
+                <h2>Create New Group:</h2>
+
+                <form id="welcome-create-form">
+                    <label>Owner Nickname:</label>
+                    <input class="w3-input w3-margin-bottom" type="text" id="welcome-create-name">
+                    <button id="welcome-create-button" class="w3-button w3-blue">
+                    Create Game!
+                    </button>
+
+                    <p style="color: red" id="welcome-create-error"></p>
+                </form>
+                </div>
+            </div>
+
+            <div class="w3-col s12 m6 l4 w3-padding">
+                <div class="w3-card w3-white imitation-card w3-padding">
+                <h2>Local Game:</h2>
+                <p>Play against AI players - no further internet connection needed!</p>
+
+                <form id="welcome-local-form">
+                    <button id="welcome-local-button" class="w3-button w3-blue">
+                    Create a Local Game!
+                    </button>
+
+                    <p style="color: red" id="welcome-local-error"></p>
+                </form>
+                </div>
+            </div>
+            
+            </div>
+
+        </div>
+    </div>
+
+    <div id="webWait-screen" style="display: none;">
+        <div class="w3-padding w3-content">
+            <h1 id='webWait-title'></h1>
+            <h3>Please wait for other players to join. The group owner will start the game when everyone is ready.</h3>
+        </div>
+    </div>
+
+    <div id="webOwner-screen" style="display: none;">
+        <div class="w3-padding w3-content">
+            <h1 id="webOwner-title"></h1>
+            <h3>Share this code with other players so they can join the group. Select one of the games below to play when everyone is ready.</h3>
+            <div id="webOwner-gameList" class="w3-row w3-section w3-stretch"></div>
+        </div>
+    </div>
+
+    <div id="local-screen" style="display: none;">
+        <div class="w3-padding w3-content">
+            <h1>Local Game Setup</h1>
+            <h3>Choose the number of AI players and select your game.</h3>
+            <div id="local-gameList" class="w3-row w3-section w3-stretch"></div>
+        </div>
+    </div>
+
+    <div id="game-screen" style="display: none;">
+        <canvas id="gameCanvas" style="position: absolute; left: 0; top: 0;"></canvas>
+        <canvas id="foregroundCanvas" style="position: absolute; left: 0; top: 0;"></canvas>
+
+        <div style="position: absolute; right: 0; top: 0; width: 200px; height: 90px; padding: 0; margin: 0;font-size: 60px;" class='w3-button exit-button' onclick='game_showExitMenu()'>
+            Exit
+        </div>
+
+        <h1 id='game-title-text' style="position: absolute; text-align: center; top: 16%; width: 100%; font-size: 3em; color: black;">
+            <b></b>
+        </h1>
+
+        <div id='game-exit' style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0.5, 0.5, 0.5, 0.8); display: none;">
+            <div class="w3-padding w3-content">
+                <h1 id='game-exit-title' style='text-align: center; font-size: 4em;'>Exit</h1>
+                <div id='game-exit-container'>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="page.js"></script>
+</body>

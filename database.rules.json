@@ -1,0 +1,58 @@
+{
+  "rules" : {
+    "games" : {
+      "$gameID" : {
+        ".write" : "!newData.exists() && root.child('gameLog').child($gameID).child('owner').val() == auth.uid", // delete all
+        "lastModification" : {
+          ".read" : false,
+          ".write" : "data.parent().child('players').child(auth.uid).exists() || root.child('gameLog').child($gameID).child('owner').val() == auth.uid",
+          ".validate" : "newData.isNumber() && newData.val() > (now - 6000) && newData.val() < (now + 6000)" // accurate timestamp
+        },
+        "players" : {
+          ".read" : "root.child('gameLog').child($gameID).child('owner').val() == auth.uid",
+          ".write" : "!newData.exists() && root.child('gameLog').child($gameID).child('owner').val() === auth.uid", // delete all
+          "$playerID" : {
+            ".write" : "!newData.exists() && $playerID === auth.uid", // delete user entry
+						"name" : {
+              ".validate" : "newData.isString() && newData.val().length <= 32",
+              ".write" : "!data.parent().exists()"
+            }
+          }
+        },
+        "gamePlay" : {
+          ".write" : "!newData.exists() && root.child('gameLog').child($gameID).child('owner').val() === auth.uid", // delete all
+          ".read" : "data.parent().child('players').child(auth.uid).exists()",
+          "$moveID" : {
+            ".write" : "data.parent().parent().child('players').child(auth.uid).exists()",
+            ".validate" : "newData.child('player').val() === auth.uid"
+          }
+        }
+      }
+    },
+    "gameCodes" : {
+      "$gameCode" : {
+        ".write" : "!newData.exists() && root.child('gameLog').child(data.child('id').val()).child('owner').val() === auth.uid", // delete all
+        ".read" : "auth.uid != null",
+        "id" : {
+          ".write" : "!data.exists() && root.child('gameLog').child(newData.val()).child('owner').val() === auth.uid",
+          ".validate" : "root.child('gameLog').child(newData.val()).child('code').val() === $gameCode"
+        }
+      }
+    },
+    "gameLog" : {
+      "$gameID" : {
+        ".write" : "!newData.exists() && data.child('owner').val() === auth.uid && !root.child('games').child($gameID).exists() && !root.child('gameCodes').child(data.child('code').val()).exists()",
+        "owner" : {
+          ".read" : false,
+          ".write" : "auth.uid != null && !root.child('games').child($gameID).exists() && !data.parent().exists()",
+          ".validate" : "newData.val() === auth.uid"
+        },
+        "code" : {
+          ".read" : false,
+          ".write" : "!data.exists() && data.parent().child('owner').val() === auth.uid",
+          ".validate" : "!root.child('gameCodes').child(newData.val()).exists() && newData.isString() && newData.val().length <= 9"
+        }
+      }
+    }
+  }
+}
