@@ -1,6 +1,6 @@
 # Deckless Games
 
-A mirror of the code used for deckless games ([deckless.web.app/games.html](deckless.web.app/games.html)). This site provides a html/javascript interface for card games and a Firebase backend that enables multiplayer games. The project is under development (currently it only supports one game) but the hope is to continue expanding it.
+A mirror of the code used for deckless games ([deckless.web.app/games.html](https://deckless.web.app/games.html)). This site provides a html/javascript interface for card games and a Firebase backend that enables multiplayer games. The project is under development (currently it only supports one game) but the hope is to continue expanding it.
 
 ## Using this code
 
