@@ -1,3 +1,7 @@
+/* card.js
+    define utilities that help with common card-related tasks; these utilities
+    act on card values, not Card objects
+*/
 
 /* an array of all the cards that have been created for the current game */
 var allCards = null;
