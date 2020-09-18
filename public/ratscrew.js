@@ -1,23 +1,48 @@
+/* ratscrew.js
+    implement the ratscrew card game functions
+*/
 
+/* ratscrew_currentPlayerIndex
+    return the index of the current player
+*/
 function ratscrew_currentPlayerIndex() {
     return game.getCurrentState().globalStates.currentPlayer;
 }
 
+/* ratscrew_getPlayerByindex
+    get a players's name based on its player index
+*/
 function ratscrew_getPlayerByIndex(index) {
     return game.players[index];
 }
 
+/* ratscrew_currentPlayer
+    return the current player's name
+*/
 function ratscrew_currentPlayer() {
     return ratscrew_getPlayerByIndex(
         ratscrew_currentPlayerIndex()
     );
 }
 
+/* ratscrew_getNextPlayer
+    get the index of the next player; return null if there is only one player
+    left in the game
+
+    state: the current game state
+
+    return the player index or null
+*/
 function ratscrew_getNextPlayer(state) {
     var nextPlayerIndex = ratscrew_currentPlayerIndex();
+
+    // iterate the player index until you find a valid player, or you get back
+    // to the same player
     while (true) {
         nextPlayerIndex = (nextPlayerIndex + 1) % game.players.length;
 
+        // if the player still has cards in their hand, then they should play
+        // next
         var nextPlayer = ratscrew_getPlayerByIndex(nextPlayerIndex);
         var nextPlayerStack = state.getGroupAndStack(nextPlayer, 'hand');
         if (nextPlayerStack.cards.length > 0) {
@@ -30,20 +55,43 @@ function ratscrew_getNextPlayer(state) {
     }
 }
 
+/* ratscrew_changeCurrentPlayer
+    set a new current player, updating both the game state and the UI
+
+    newState: the new state object being formed
+    newPlayer: the player to set as the new current player
+*/
 function ratscrew_changeCurrentPlayer(newState, newPlayer) {
     var oldPlayer = game.players[newState.globalStates.currentPlayer];
+
+    // update the visual card stacks
     var oldStack = newState.getGroupAndStack(oldPlayer, 'hand');
     var newStack = newState.getGroupAndStack(newPlayer, 'hand');
     oldStack.display.setBackground(null);
     newStack.display.setBackground('#99ff33');
+
+    // update the game state
     newState.globalStates.currentPlayer = game.players.indexOf(newPlayer);
 }
 
+/* ratscrew_advancePlayer
+    advance the current player of the game, updating both the game state
+    and the UI
+
+    playerStack: the current player's stack
+    newState: the new state to modify
+*/
 function ratscrew_advancePlayer(playerStack, newState) {
+    // unhighlight the current players stack
     playerStack.display.setBackground(null);
+
+    // get the next player
     var nextPlayerIndex = ratscrew_getNextPlayer(newState);
 
+    // update the game state to reflect the new player
     newState.globalStates.currentPlayer = nextPlayerIndex;
+
+    // if there is a next player, highlight their card stack
     if (nextPlayerIndex != null) {
         var nextPlayer = game.players[nextPlayerIndex];
         var nextPlayerStack = newState.stackGroups[nextPlayer].stacks.hand;
@@ -51,49 +99,82 @@ function ratscrew_advancePlayer(playerStack, newState) {
     }
 }
 
+/* ratscrew_checkTopBottomPair
+    check for a top botton pair in a stack of cards (card at the top and bottom
+    of the deck with the same face value)
+
+    cards: an array of Card objects
+
+    return a boolean
+*/
 function ratscrew_checkTopBottomPair(cards) {
+    // cannot have a pair in less than two cards
     if (cards.length < 2) {
         return false;
     }
 
+    //get the top and bottom card and check if they're equivalent
     var topCard = cards_getNum(cards[cards.length - 1].value);
     var bottomCard = cards_getNum(cards[0].value);
-    console.log(topCard, bottomCard);
-
     if (topCard == bottomCard) {
         return true;
     }
     return false;
 }
 
+/* ratscrew_checkPair
+    check for a pair (top two cards have the same face value) in ta stack of
+    cards
+
+    cards: an array of Card objects
+
+    return a boolean
+*/
 function ratscrew_checkPair(cards) {
+    // cannot have a pair in less than two cards
     if (cards.length < 2) {
         return false;
     }
 
+    // get the top two cards and compare their value
     var topCard = cards_getNum(cards[cards.length - 1].value);
     var bottomCard = cards_getNum(cards[cards.length - 2].value);
-
     if (topCard == bottomCard) {
         return true;
     }
     return false;
 }
 
+/* ratscrew_checkSandwich
+    check for a sandwich (top card and card two below it are the same face 
+    value in a deck of cards)
+
+    cards: an array of Card objects
+
+    return a boolean
+*/
 function ratscrew_checkSandwich(cards) {
+    // cannot have a sandwich with less than 3 cards
     if (cards.length < 3) {
         return false;
     }
 
+    // get the two cards and compare their value
     var topCard = cards_getNum(cards[cards.length - 1].value);
     var bottomCard = cards_getNum(cards[cards.length - 3].value);
-
     if (topCard == bottomCard) {
         return true;
     }
     return false;
 }
 
+/* ratscrew_checkPatterns
+    check for a slap-able pattern in a deck of cards
+
+    cards: an array of Card objects
+
+    return a string with the name of the pattern, or null if no pattern is found
+*/
 function ratscrew_checkPatterns(cards) {
     if (ratscrew_checkPair(cards)) {
         return "Pair";
