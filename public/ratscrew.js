@@ -188,11 +188,20 @@ function ratscrew_checkPatterns(cards) {
     return null;
 }
 
+/* ratscrew_checkWinner
+    check if somebody has won the game; if yes, run the winner handling code;
+    otherwise, do nothing
+*/
 function ratscrew_checkWinner() {
+
+    // iterate through each player checking for winners
     var winnerPlayer = null;
     for (var i = 0; i < game.players.length; i++) {
         var player = game.players[i];
 
+        // if a player has a non empty deck, they are a potential winner; if
+        // multiple players have non empty decks though, there is not a winner
+        // yet
         if (game.getCurrentState().getGroupAndStack(player, 'hand').cards.length > 0) {
             if (winnerPlayer) {
                 return;
@@ -203,11 +212,15 @@ function ratscrew_checkWinner() {
         }
     }
 
+    // if the center stack could be slapped right now, then the game is not
+    // actually over yet
     var centerStack = game.getCurrentState().stackGroups.centerPile.stacks.stack;
     if (ratscrew_checkPatterns(centerStack.cards)) {
         return;
     }
 
+    // If there is a non-winner player who can slap the pile because of face
+    // cards, then there is not winner yet
     if (
         game.getCurrentState().globalStates.faceCardState && 
         game.getCurrentState().globalStates.faceCardBeneficiary != winnerPlayer &&
@@ -216,38 +229,55 @@ function ratscrew_checkWinner() {
         return;
     }
 
+    // actually process the game win
     game_handleWinner(winnerPlayer);
 }
 
+/* ratscrew_ProcessMove
+    move processing hander for ratscrew
+
+    moveId: a unique string assigned to the move
+    info: a dictionary of move info; at minimum should have an 'action' key
+    to designate what type of move it is
+*/
 function ratscrew_ProcessMove(moveId, info) {
+    // create a new game
     if (info.action == "create") {
         // build the initial game state
         game = new GameObject(info.playerIDs);
         var state = new GameState(null);
+
+        // set the card stacks
         state.createStackGroups(info.playerIDs, ["hand"]);
         state.createStackGroup("centerPile", ["stack"]);
+
+        // generate the cards and add the create move
         game.addState(moveId, info, state);
         cards_create52CardDeck();
     }
 
+    // start an already created game
     if (info.action == "start") {
+        // new state to save for after the game
         var newState = game.newState(moveId, info);
 
+        // setup the visual stacks for each player
         var displays = game.drawManager.createCircularStacks(
             game.players.length,
             game.players.indexOf(self_playerID)
         );
-
         for (var i = 0; i < game.players.length; i++) {
+
+            // attatch the corresponding visual display to each card stack
             var playerID = game.players[i];
             var hand = game.getCurrentState().getGroupAndStack(playerID, 'hand');
             hand.addDisplay(displays[i]);
             hand.display.text = game_playerNames[playerID];
 
+            // set the initial visual states of each stack
             if (i == 0) {
                 hand.display.setBackground('#99ff33');
             }
-
             if (playerID == self_playerID) {
                 hand.setHoverActive();
                 hand.display._mouseClickFunc = ratscrew_userClickFunc;
@@ -257,37 +287,45 @@ function ratscrew_ProcessMove(moveId, info) {
                 hand.setHoverHighlight();
             }
 
+            // ard cards to each stack in face down orientation
             hand.addCards(info.players[i].initialCards, "down");
         }
 
+        // setup the visual state of the cetner stack
         var centerStack = game.getCurrentState().getGroupAndStack('centerPile', 'stack');
         centerStack.addDisplay(game.drawManager.createCenterStack());
         centerStack.display._mouseClickFunc = ratscrew_userSlapFunc;
         centerStack.setHoverHighlight();
         centerStack.display.text = 'Click to Slap';
 
+        // add the global state variables
         game.getCurrentState().addStateVariable('currentPlayer', 0);
-
         game.getCurrentState().addStateVariable('faceCardState', false);
         game.getCurrentState().addStateVariable('faceCardsToPlay', null);
         game.getCurrentState().addStateVariable('faceCardBeneficiary', null);
 
+        // start animating the screen
         game.drawManager.draw();
         requestAnimationFrame(animationFunction);
     }
 
+    // process a move
     if (info.action == "move") {
+        // if the state cannot be verified, skip it
         if (!game.verifyState(info.previousMoveID)) {
             return;
         }
 
+        // new game state to build
         var newState = new GameState(game.getCurrentState());
 
+        // if the somebody other than the current player moved, reject it
         var currentPlayer = ratscrew_currentPlayer();
         if (info.player != currentPlayer) {
             return;
         }
 
+        // if the game is in the face cards state, reject the move
         if (
             newState.globalStates.faceCardState &&
             newState.globalStates.faceCardsToPlay <= 0
@@ -295,45 +333,55 @@ function ratscrew_ProcessMove(moveId, info) {
             return;
         }
 
+        // get the stacks
         var playerStack = newState.stackGroups[info.player].stacks.hand;
         var centerStack = newState.stackGroups.centerPile.stacks.stack;
 
+        // if sending a card to the center stack fails, ignore the move
         if (!playerStack.sendCard(info.card, centerStack, 'top', 'up')) {
             return;
         }
 
+        // set the face card state if a face card was playerd
         if (cards_getNumAceHigh(info.card) > 10) {
             newState.globalStates.faceCardState = true;
             newState.globalStates.faceCardsToPlay = cards_getNumAceHigh(info.card) - 10;
             newState.globalStates.faceCardBeneficiary = info.player;
             ratscrew_advancePlayer(playerStack, newState);
         }
+        // if in the face card state, update the place in the the state after
+        // the play
         else if (newState.globalStates.faceCardState) {
             newState.globalStates.faceCardsToPlay--;
-            /* TODO -- handle when stack if empty */
             if (playerStack.cards.length == 0) {
                 ratscrew_advancePlayer(playerStack, newState);
             }
         }
+        // otherwise it is a normal play
         else {
             ratscrew_advancePlayer(playerStack, newState);
         }
 
+        // add the state and see if somebody won
         game.addState(moveId, info, newState);
-
         ratscrew_checkWinner();
     }
 
+    // handle a player slapping the deck
     if (info.action == "slap") {
+        // ignore the move if it cannot be verified
         if (!game.verifyState(info.previousMoveID)) {
             return;
         }
 
+        // create a new state
         var newState = new GameState(game.getCurrentState());
 
+        // get the stacks
         var playerStack = newState.stackGroups[info.player].stacks.hand;
         var centerStack = newState.stackGroups.centerPile.stacks.stack;
 
+        // check if there was a slappable pattern & state; if not, exit
         var pattern = ratscrew_checkPatterns(centerStack.cards);
         if (!(
             newState.globalStates.faceCardState &&
@@ -344,6 +392,7 @@ function ratscrew_ProcessMove(moveId, info) {
             return;
         }
 
+        // display whether it was valid based on face cards or a card pattern
         if (pattern) {
             game_tempTitleText(game_playerNames[info.player] + ": " + pattern, '#000080');
         }
@@ -351,12 +400,16 @@ function ratscrew_ProcessMove(moveId, info) {
             game_tempTitleText(game_playerNames[info.player] + ": Face Cards", '#000080');
         }
 
+        // exit the face card state after a slap
         newState.globalStates.faceCardState = false;
         ratscrew_changeCurrentPlayer(newState, info.player);
 
+        // put all the cards face down at the bottom of the slapping player's
+        // stack
         centerStack.sendAll(playerStack, 'bottom', 'down');
         game.addState(moveId, info, newState);
 
+        // check if there was a winner
         ratscrew_checkWinner();
     }
 }
