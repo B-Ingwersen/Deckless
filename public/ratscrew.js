@@ -414,54 +414,75 @@ function ratscrew_ProcessMove(moveId, info) {
     }
 }
 
+/* ratscrew_userClickFunc
+    mouse click handler for when the user presses their stack; used for the
+    standard way of playing a card
+
+    stack: the CardStack the user clicked on
+*/
 function ratscrew_userClickFunc(stack) {
+    // ignore events when the game isn't active
     if (!game) {
         return;
     }
+
+    // if it is not the user's turn, don't allow them to click
     var currentPlayerIndex = game.getCurrentState().globalStates.currentPlayer;
     var currentPlayer = game.players[currentPlayerIndex];
-
     if (currentPlayer != self_playerID) {
         return;
     }
 
+    // get the card off the top of the player's stack
     var currentPlayerStack = game.getCurrentState().stackGroups[self_playerID].stacks.hand;
     var card = currentPlayerStack.getTopCard().value;
 
+    // add a move
     var moveInfo = {
         previousMoveID : game.getCurrentID(),
         action : "move",
         player : currentPlayer,
         card : card
     };
-
     postMove(moveInfo);
 }
 
+/* ratscrew_userSlapFunc
+    the mouse click function for the center stack; when the user presses it,
+    it generates a slap event
+*/
 function ratscrew_userSlapFunc(stack) {
-    console.log("i worked!");
-
+    // create and post the slap move
     var moveInfo = {
         previousMoveID : game.getCurrentID(),
         action : "slap",
         player : self_playerID
     };
-
     postMove(moveInfo);
 }
 
+/* ratscrew_aiFunction
+    the move handler for computer players
+
+    playerID: the player id string of the ai player
+*/
 function ratscrew_aiFunction(playerID) {
+    // do nothing if there is no active game
     if (!game) {
         return;
     }
+
+    // figure out who's move it is and what the last move was
     var currentPlayerIndex = game.getCurrentState().globalStates.currentPlayer;
     var currentPlayer = game.players[currentPlayerIndex];
     var previousMoveID = game.getCurrentID();
 
+    // if it is the AI player's turn, make a move
     if (currentPlayer == playerID) {
         var currentPlayerStack = game.getCurrentState().stackGroups[playerID].stacks.hand;
         var card = currentPlayerStack.getTopCard().value;
 
+        // wait 1.5 seconds before moving
         setTimeout(function(){
             postMove({
                 previousMoveID : previousMoveID,
@@ -471,11 +492,16 @@ function ratscrew_aiFunction(playerID) {
             });
         }, 1500);
     }
+
+    // trigger a slap if it's the computer player's opportunity to claim face
+    // cards
     else if (
         game.getCurrentState().globalStates.faceCardState &&
         playerID == game.getCurrentState().globalStates.faceCardBeneficiary &&
         game.getCurrentState().globalStates.faceCardsToPlay == 0
     ) {
+
+        // wait 1 second before claiming
         setTimeout(function(){
             postMove({
                 previousMoveID : previousMoveID,
@@ -484,10 +510,17 @@ function ratscrew_aiFunction(playerID) {
             });
         }, 1000);
     }
+
+    // if there is a slapable pattern, potentially slap it
     else if (ratscrew_checkPatterns(
         game.getCurrentState().getGroupAndStack('centerPile', 'stack').cards
     )) {
+        // slap 1/3 of the time on slappable patterns
         if (Math.random() < 1.0 / 3.0) {
+
+            // wait between 0.6 and 1.6 seconds to simulate the varying
+            // reactions of a human player (note that a human player loses
+            // a few tenths of a second because of the animation)
             setTimeout(function(){
                 postMove({
                     previousMoveID : previousMoveID,
@@ -499,16 +532,26 @@ function ratscrew_aiFunction(playerID) {
     }
 }
 
+/* ratscrew_setupGame
+    the game setup handler for a ratscrew game
+
+    moveID: the string ID of the move
+    info: the dictionary with the game set up information
+*/
 function ratscrew_setupGame(moveID, info) {
+    // set the move handlers
     moveProcessingFunction = ratscrew_ProcessMove;
     aiProcessingFunction = ratscrew_aiFunction;
 
+    // pass the move to the move handling function
     moveProcessingFunction(moveID, info);
 }
 
+/* ratscrew_startGame
+    the game starting handler for ratscrew games
+*/
 function ratscrew_startGame() {
-    console.log('tried to start');
-
+    // post the game create and the game start moves
     postMove({
         action : "create",
         game : "ratscrew",
@@ -516,7 +559,6 @@ function ratscrew_startGame() {
         playerNames : game_playerNames,
         player : self_playerID
     });
-
     postMove({
         action : "start",
         players : cards_initialShuffleAll(game_playerIDs),
